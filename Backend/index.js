@@ -3,6 +3,7 @@ const multer = require("multer");
 const cors = require("cors");
 const docxToPDF = require("docx-pdf");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 const port = 3000;
@@ -20,6 +21,30 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+// Helper to clean up old files
+function cleanupDirectory(dirPath, maxFiles =10) {
+    fs.readdir(dirPath, (err, files) => {
+        if (err) return;
+        if (files.length > maxFiles) {
+            // Sort files by creation time (oldest first)
+            files = files
+                .map(file => ({
+                    name: file,
+                    time: fs.statSync(path.join(dirPath, file)).ctime.getTime()
+                }))
+                .sort((a, b) => a.time - b.time)
+                .map(f => f.name);
+
+            // Delete oldest files
+            const filesToDelete = files.slice(0, files.length - maxFiles);
+            filesToDelete.forEach(file => {
+                fs.unlink(path.join(dirPath, file), () => {});
+            });
+        }
+    });
+}
+
 app.post("/convertFile", upload.single("file"), (req, res, next) => {
     try {
         if (!req.file) {
@@ -42,6 +67,9 @@ app.post("/convertFile", upload.single("file"), (req, res, next) => {
             }
             res.download(outoutPath, () => {
                 console.log("file downloaded");
+                // Clean up after download
+                cleanupDirectory(path.join(__dirname, "uploads"));
+                cleanupDirectory(path.join(__dirname, "files"));
             });
         });
     } catch (error) {

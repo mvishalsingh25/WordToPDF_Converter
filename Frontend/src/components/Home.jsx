@@ -1,33 +1,42 @@
 import React, { useState } from "react";
 import { FaFileWord } from "react-icons/fa6";
+import { FaSpinner } from "react-icons/fa";
 import axios from "axios";
 
 function Home() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [convertMessage, setConvertMessage] = useState("");
   const [downloadError, setDownloadError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file && (file.type === "application/msword" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+    setConvertMessage("");
+    setDownloadError("");
+    if (
+      file &&
+      (file.type === "application/msword" ||
+        file.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    ) {
       setSelectedFile(file);
-      setConvertMessage("");
-      setDownloadError("");
     } else {
       setSelectedFile(null);
-      setConvertMessage("");
       setDownloadError("Please select a valid Word file (.doc or .docx).");
     }
   };
 
-  
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setConvertMessage("");
+    setDownloadError("");
 
     if (!selectedFile) {
       setConvertMessage("Please select a file to convert.");
       return;
     }
+
+    setIsLoading(true);
 
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -51,16 +60,15 @@ function Home() {
       link.parentNode.removeChild(link);
 
       setSelectedFile(null);
-      setDownloadError("");
-      setConvertMessage("Your file has been successfully converted!");
+      setConvertMessage("Your file has been successfully converted and downloaded!");
     } catch (error) {
-      console.error(error);
-      setConvertMessage("");
       setDownloadError(
         error.response?.status === 400
           ? `Error: ${error.response.data.message}`
-          : "An error occurred during the conversion process."
+          : "An error occurred during the conversion process. Please try again."
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -77,7 +85,9 @@ function Home() {
         <div className="space-y-4 sm:space-y-6">
           <label
             htmlFor="fileInput"
-            className="flex items-center justify-center w-full px-4 py-4 sm:py-4 bg-gray-100 text-gray-700 border-2  border-slate-300 rounded-lg cursor-pointer hover:bg-blue-100 hover:text-blue-600 transition duration-300"
+            className={`flex items-center justify-center w-full px-4 py-4 sm:py-4 bg-gray-100 text-gray-700 border-2 border-slate-300 rounded-lg cursor-pointer hover:bg-blue-100 hover:text-blue-600 transition duration-300 ${
+              isLoading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
             <FaFileWord className="text-4xl sm:text-4xl text-blue-500 mr-3" />
             <span className="text-sm sm:text-lg text-center">
@@ -89,15 +99,25 @@ function Home() {
               accept=".doc,.docx"
               onChange={handleFileChange}
               className="hidden"
+              disabled={isLoading}
             />
           </label>
 
           <button
             onClick={handleSubmit}
-            disabled={!selectedFile}
-            className="w-full py-2 sm:py-3 text-white bg-blue-500 hover:bg-blue-600 cursor-pointer font-semibold rounded-lg transition duration-300"
+            disabled={!selectedFile || isLoading}
+            className={`w-full py-2 sm:py-3 text-white bg-blue-500 hover:bg-blue-600 font-semibold rounded-lg transition duration-300 flex items-center justify-center ${
+              (!selectedFile || isLoading) ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
-            Convert to PDF
+            {isLoading ? (
+              <>
+                <FaSpinner className="animate-spin mr-2" />
+                Converting...
+              </>
+            ) : (
+              "Convert to PDF"
+            )}
           </button>
 
           {convertMessage && (
